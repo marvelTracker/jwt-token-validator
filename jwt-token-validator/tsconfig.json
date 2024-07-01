@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "strict": true,
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*.ts", "src/auth._back"],
+  "exclude": ["node_modules"]
+}

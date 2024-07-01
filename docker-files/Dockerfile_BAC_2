@@ -1,0 +1,30 @@
+# Use the official Node.js image based on Alpine Linux
+FROM node:alpine
+
+# Install NGINX with necessary modules
+RUN apk add --no-cache nginx nginx-mod-http-lua nginx-mod-http-lua-upstream nginx-mod-stream
+
+# Remove default NGINX configuration
+RUN rm -rf /etc/nginx/conf.d/*
+
+# Copy the custom NGINX configuration file
+COPY nginx/nginx.conf /usr/local/nginx/conf/nginx.conf
+
+# Copy the JWT public key file
+COPY public_key.pem /usr/local/nginx/conf/jwt_public_key.pem
+
+# Set up working directory for Node.js application
+WORKDIR /usr/src/app
+
+# Copy Node.js application files
+COPY app/package.json .
+COPY app/app.js .
+
+# Install Node.js dependencies
+RUN npm install
+
+# Expose port 80 for NGINX
+EXPOSE 8080
+
+# Start NGINX and Node.js application
+CMD nginx -g "daemon off;" & node app.js

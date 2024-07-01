@@ -1,0 +1,76 @@
+# Use the official Node.js image based on Alpine Linux
+FROM node:alpine
+
+# Install necessary packages for Lua, luarocks, and dependencies
+RUN apk update && \
+    apk add --no-cache \
+    lua5.3 \
+    lua5.3-dev \
+    build-base \
+    linux-headers \
+    git \
+    wget \
+    unzip \
+    coreutils # Adds md5sum
+
+# Install luarocks manually (as Alpine may not have it in default repositories)
+RUN wget https://luarocks.org/releases/luarocks-3.9.1.tar.gz && \
+    tar zxpf luarocks-3.9.1.tar.gz && \
+    cd luarocks-3.9.1 && \
+    ./configure && \
+    make build && \
+    make install
+
+# Install Lua modules via luarocks
+RUN luarocks install luafilesystem
+
+# Clean up unnecessary packages and cache
+RUN apk del \
+    build-base \
+    linux-headers \
+    git \
+    wget \
+    unzip \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json (if exists)
+COPY app/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy application source
+COPY app .
+
+# Expose port
+EXPOSE 80
+
+# Install NGINX and openssl for SSL support
+RUN apk add --no-cache nginx openssl
+
+# Remove default NGINX configuration
+RUN rm -rf /etc/nginx/conf.d/*
+
+# Copy NGINX configuration file
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Create directories for SSL certificates and Lua scripts
+RUN mkdir -p /etc/nginx/ssl /etc/nginx/lua
+
+# Copy Lua script for JWT validation
+COPY nginx/jwt_validator.lua /etc/nginx/lua/jwt_validator.lua
+
+# Copy SSL certificates
+COPY private_key_cert.pem /etc/nginx/ssl/private_key_cert.pem
+COPY certificate.pem /etc/nginx/ssl/certificate.pem
+
+RUN chmod 644 /etc/nginx/ssl/private_key_cert.pem /etc/nginx/ssl/certificate.pem
+
+# Expose port
+EXPOSE 443
+
+# Start NGINX and Node.js app
+CMD nginx && npm start

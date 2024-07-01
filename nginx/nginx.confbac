@@ -1,0 +1,44 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include mime.types;
+    default_type application/octet-stream;
+
+    lua_package_path "/etc/nginx/lua/?.lua;;";
+    #lua_shared_dict keys 1m;
+    #lua_ssl_trusted_certificate /etc/nginx/ssl/public.pem;
+    #lua_ssl_verify_depth 2;
+
+    #auth_jwt_public_key "/etc/nginx/ssl/public.pem";
+    #auth_jwt_claim_sub sub;
+    #auth_jwt_claim_iss iss;
+    #auth_jwt_claim_aud aud;
+    #auth_jwt_alg RS256;
+
+    server {
+        listen 443 ssl;
+
+        ssl_certificate /etc/nginx/ssl/certificate.pem;
+        ssl_certificate_key /etc/nginx/ssl/private_key_cert.pem;
+
+        location /api {
+            access_by_lua_file /etc/nginx/lua/jwt_validator.lua;
+            proxy_pass http://localhost:4000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        # Optionally serve static files or UI
+        # location / {
+        #     root /usr/share/nginx/html;
+        #     index index.html index.htm;
+        # }
+    }
+}
