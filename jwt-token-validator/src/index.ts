@@ -34,7 +34,7 @@ app.get("/api/validate-token", async (req: Request, res: Response) => {
     res.status(200).json({ valid: true, decodedToken });
   } catch (error) {
     console.log("Error", error);
-    res.status(401).json({ valid: false, error: error });
+    res.status(401).json({ valid: false, error: (error as Error).message });
   }
 });
 
@@ -43,6 +43,8 @@ app.get("/api/health", async (req: Request, res: Response) => {
 });
 
 // Start the server
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+export { app, server };
