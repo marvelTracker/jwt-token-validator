@@ -5,7 +5,7 @@ import { Auth } from "./auth"; // Assuming auth.ts handles JWT validation
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 6000;
 
 const authConfig = {
   jwksUri:
@@ -23,8 +23,10 @@ const auth = new Auth(authConfig);
 
 // Endpoint to validate JWT token
 app.get("/api/validate-token", async (req: Request, res: Response) => {
+  console.log("Request in validator", req);
   const token = auth.getTokenFromHeader(req);
   if (!token) {
+    console.log("Error", { error: "Token not provided" });
     return res.status(401).json({ error: "Token not provided" });
   }
 
@@ -44,7 +46,7 @@ app.get("/api/health", async (req: Request, res: Response) => {
 
 // Start the server
 const server = app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Token validator is running on http://localhost:${port}`);
 });
 
 export { app, server };

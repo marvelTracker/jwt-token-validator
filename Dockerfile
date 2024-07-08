@@ -8,6 +8,7 @@ RUN apk add --no-cache \
     pcre-dev \
     zlib \
     zlib-dev \
+    openssl \
     openssl-dev \
     wget
 
@@ -19,6 +20,7 @@ RUN wget https://nginx.org/download/nginx-1.27.0.tar.gz && \
     --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log \
     --with-pcre --pid-path=/var/run/nginx.pid \
     --with-http_ssl_module \
+    --with-http_v2_module \
     --with-http_auth_request_module && \
     make && \
     make install
@@ -28,44 +30,40 @@ WORKDIR /api
 COPY api /api
 RUN npm ci
 
-# WORKDIR /jwt-token-validator
-# COPY jwt-token-validator /jwt-token-validator
-# RUN npm ci
-
-
+# Copy Nginx configuration file
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/ssl-config.conf /etc/nginx/snippets/ssl-config.conf
 
-
-FROM jwt-token-validator:latest as jwt-validator-builder
-
+FROM jwt-token-validator:v1 as jwt-validator-builder
 
 # Use a smaller base image for the final stage
 FROM node:alpine
+
+# Install runtime dependencies for Nginx
+RUN apk add --no-cache pcre zlib openssl curl \
+    && mkdir -p /etc/nginx/snippets/ \
+    && mkdir -p /usr/local/nginx/ \
+    && mkdir -p /etc/ssl/cert/
 
 # Copy built Nginx and installed Node.js applications from the builder stage
 COPY --from=builder /etc/nginx /etc/nginx
 COPY --from=builder /usr/bin/nginx /usr/bin/nginx
 COPY --from=builder /var/log/nginx /var/log/nginx
-COPY --from=builder /usr/local/nginx /usr/local/nginx
-
-#COPY --from=builder /etc/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --from=builder /var/log/nginx /var/log/nginx
+COPY --from=builder /var/log/nginx /var/log/nginx
+COPY --from=builder /etc/nginx/snippets /etc/nginx/snippets
 
 COPY --from=builder /api /api
 COPY --from=jwt-validator-builder /app /jwt-token-validator
 
-# Install runtime dependencies for Nginx
-RUN apk add --no-cache pcre zlib openssl
-
 # Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh
+COPY nginx/gen-certs.sh /gen-certs.sh
 RUN chmod +x /entrypoint.sh
-
-# Create a non-root user and switch to it
-# RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-# USER appuser
+RUN chmod +x /gen-certs.sh
 
 # Expose the ports
-EXPOSE 80
+EXPOSE 80 443
 
 # Run the entrypoint script
 ENTRYPOINT ["/entrypoint.sh"]
